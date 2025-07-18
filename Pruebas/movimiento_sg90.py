@@ -28,14 +28,12 @@ def mover_suavemente(desde, hasta, pasos=20, retardo=0.05):
 # Movimiento completo de 0° a -90° y regreso con suavidad
 def movimiento_suave_ida_y_vuelta():
     print("Moviendo suavemente a -90°...")
-    mover_suavemente(1.5, 0.5, pasos=30, retardo=0.03)
-    #mover_suavemente(1.5, 0.7, pasos=30, retardo=0.03)
+    mover_suavemente(1.8, 0.7, pasos=30, retardo=0.03)
 
     time.sleep(5.5)
 
     print("Volviendo suavemente a 0°...")
-    mover_suavemente(0.5, 1.5, pasos=30, retardo=0.03)
-    #mover_suavemente(0.7, 1.5, pasos=30, retardo=0.03)
+    mover_suavemente(0.7, 1.8, pasos=30, retardo=0.03)
 
 # Ejecución
 try:
