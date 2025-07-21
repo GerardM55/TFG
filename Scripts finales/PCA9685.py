@@ -108,7 +108,7 @@ def obtener_posicion_stop(dedo):
             return valor
     return 2.5 if dedo == "rot" else 1.5
 
-def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.01):
+def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.06):
     # --- Función para hacer el movimiento de un dedo con control por realimentación ---
     canal = dedos[dedo]
     if dedo!="rot":
@@ -119,7 +119,7 @@ def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.01):
     else:
         paso = abs(paso)
 
-    while abs(posicion_actual - objetivo) > 0.01: # Mientras la posición actual no sea igual al objetivo
+    while abs(posicion_actual - objetivo) > 0.05: # Mientras la posición actual no sea igual al objetivo
         mover_servo(canal, posicion_actual)
         time.sleep(delay)
         
