@@ -31,7 +31,7 @@ def convertir_audio(ruta_entrada):
     buffer.seek(0)
     return buffer
 
-# 🧹 Limpiar texto
+# Limpiar texto
 def limpiar_texto(texto):
     texto = texto.lower()
     texto = ''.join(
@@ -40,7 +40,7 @@ def limpiar_texto(texto):
     )
     return texto
 
-# 🗣 Transcripción con Vosk usando el audio convertido
+# Transcripción con Vosk usando el audio convertido
 def transcribir_audio(ruta_audio):
     wav_buffer = convertir_audio(ruta_audio)
     wf = wave.open(wav_buffer, "rb")
@@ -59,7 +59,7 @@ def transcribir_audio(ruta_audio):
     texto += final_result.get("text", "")
     return texto.strip()
 
-# 🔍 Clasificación
+# Clasificación
 def clasificar_palabra(texto):
     texto_limpio = limpiar_texto(texto)
     X = vectorizador.transform([texto_limpio])
@@ -74,7 +74,7 @@ def procesar_audio(ruta_audio):
     etiqueta = clasificar_palabra(transcripcion)
     return transcripcion, etiqueta
 
-# 📂 Ruta donde se encuentra el audio
+# Ruta donde se encuentra el audio
 ruta_audio = "/home/raspberry/Grabacion.wav"
 
 # Ejecutar procesamiento
