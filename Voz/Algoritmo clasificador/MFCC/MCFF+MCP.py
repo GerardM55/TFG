@@ -24,8 +24,9 @@ carpetas = {
     "C:/Users/gerar/Desktop/tfg/Control_de_veu/audio_agarre_normalizados/stop": "stop"
 }
 
-etiquetas = list(set(carpeta for carpeta in carpetas.values() if carpeta != "otro"))
+etiquetas = list(set(carpeta for carpeta in carpetas.values() if carpeta != "otro")) # Excluyendo "otro"
 
+# Normalización y reducción de ruido
 def normalizar_audio(ruta_audio):
     audio = AudioSegment.from_file(ruta_audio)
     audio_data = np.array(audio.get_array_of_samples())
@@ -38,30 +39,33 @@ def normalizar_audio(ruta_audio):
     )
     return audio_filtrado.apply_gain(-audio_filtrado.max_dBFS)
 
+# Limpieza de texto
 def limpiar_texto(texto):
     texto = texto.lower()
     texto = ''.join(
-        c for c in unicodedata.normalize('NFD', texto)
+        c for c in unicodedata.normalize('NFD', texto) # Normalizar texto
         if unicodedata.category(c) != 'Mn'
     )
     return texto
 
+# Extraer MFCC + deltas con longitud fija
 def extraer_mfcc(ruta_audio, max_frames=130):
     y, sr = librosa.load(ruta_audio, sr=None)
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-    mfcc_delta = librosa.feature.delta(mfcc)
-    mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13) # Extraer MFCC
+    mfcc_delta = librosa.feature.delta(mfcc) # Extraer deltas
+    mfcc_delta2 = librosa.feature.delta(mfcc, order=2) # Extraer deltas de segundo orden
     mfcc_combined = np.vstack([mfcc, mfcc_delta, mfcc_delta2])
 
-    if mfcc_combined.shape[1] > max_frames:
+    if mfcc_combined.shape[1] > max_frames: # Si hay más frames de los permitidos
         mfcc_combined = mfcc_combined[:, :max_frames]
     else:
-        padding = np.zeros((mfcc_combined.shape[0], max_frames - mfcc_combined.shape[1]))
+        padding = np.zeros((mfcc_combined.shape[0], max_frames - mfcc_combined.shape[1])) # Rellenar con ceros si hay menos frames
         mfcc_combined = np.hstack([mfcc_combined, padding])
 
-    mfcc_normalizado = (mfcc_combined - np.mean(mfcc_combined)) / np.std(mfcc_combined)
+    mfcc_normalizado = (mfcc_combined - np.mean(mfcc_combined)) / np.std(mfcc_combined) # Normalizar MFCC
     return mfcc_normalizado.flatten()
 
+# Procesar audios y extraer características
 def procesar_audios():
     archivos, caracteristicas, etiquetas_reales = [], [], []
 
@@ -69,9 +73,9 @@ def procesar_audios():
         for archivo in os.listdir(carpeta):
             if archivo.endswith('.wav'):
                 ruta_audio = os.path.join(carpeta, archivo)
-                audio_normalizado = normalizar_audio(ruta_audio)
+                audio_normalizado = normalizar_audio(ruta_audio) # Normalizar y reducir ruido
                 ruta_temp = f"temp_{archivo}"
-                audio_normalizado.export(ruta_temp, format="wav")
+                audio_normalizado.export(ruta_temp, format="wav") # Exportar a un archivo temporal
 
                 mfcc = extraer_mfcc(ruta_temp)
                 archivos.append(archivo)
@@ -98,8 +102,8 @@ param_grid_mlp = {
     'max_iter': [300]
 }
 
-grid_search_mlp = GridSearchCV(MLPClassifier(random_state=42), param_grid_mlp, cv=3, verbose=1, n_jobs=-1)
-grid_search_mlp.fit(X_train, y_train)
+grid_search_mlp = GridSearchCV(MLPClassifier(random_state=42), param_grid_mlp, cv=3, verbose=1, n_jobs=-1) # Ejecutar GridSearchCV 
+grid_search_mlp.fit(X_train, y_train) # Ajustar el modelo
 
 # Mejor modelo
 best_mlp = grid_search_mlp.best_estimator_
