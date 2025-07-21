@@ -12,50 +12,53 @@ def extract_mfcc(audio_path, n_mfcc=30, augment=False):
     audio, sr = librosa.load(audio_path, sr=16000)
     
     if augment:
-        if random.random() < 0.3:
-            audio = librosa.effects.time_stretch(audio, rate=random.uniform(0.8, 1.2))
-        if random.random() < 0.3:
-            audio = librosa.effects.pitch_shift(audio, sr=sr, n_steps=random.randint(-2, 2))
-        if random.random() < 0.3:
-            noise = np.random.randn(len(audio)) * 0.005
+        if random.random() < 0.3: # Cambio de velocidad
+            audio = librosa.effects.time_stretch(audio, rate=random.uniform(0.8, 1.2)) # Estiramiento temporal
+        if random.random() < 0.3: # Cambio de tono
+            audio = librosa.effects.pitch_shift(audio, sr=sr, n_steps=random.randint(-2, 2)) # Desplazamiento de tono
+        if random.random() < 0.3: # Añadir ruido
+            noise = np.random.randn(len(audio)) * 0.005 # Ruido gaussiano
             audio = audio + noise
     
-    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)
-    return np.mean(mfcc.T, axis=0)
+    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc) # Extraer MFCC
+    return np.mean(mfcc.T, axis=0) # Promediar MFCC a lo largo del tiempo
 
-# Dataset personalizado
+# Dataset personalizado para la detección de voz
 class SpeakerDataset(Dataset):
     def __init__(self, my_audio_dir, other_audio_dir, augment=False):
         self.audio_files = []
         self.labels = []
         self.augment = augment
-        
-        for audio_file in os.listdir(my_audio_dir):
+        # Verificar archivos de audio en el directorio de mi voz
+        for audio_file in os.listdir(my_audio_dir): # Verificar archivos de audio
             if audio_file.endswith('.wav'):
-                self.audio_files.append(os.path.join(my_audio_dir, audio_file))
+                self.audio_files.append(os.path.join(my_audio_dir, audio_file)) # Ruta completa del archivo
                 self.labels.append(0)
-        
+        # Verificar archivos de audio en el directorio de otras voces
         for audio_file in os.listdir(other_audio_dir):
             if audio_file.endswith('.wav'):
                 self.audio_files.append(os.path.join(other_audio_dir, audio_file))
                 self.labels.append(1)
-        
+
+    # Número de muestras en el dataset    
     def __len__(self):
         return len(self.audio_files)
 
+    # Obtener una muestra del dataset
     def __getitem__(self, idx):
         audio_file = self.audio_files[idx]
         label = self.labels[idx]
         mfcc = extract_mfcc(audio_file, augment=self.augment)
         return torch.tensor(mfcc, dtype=torch.float32), torch.tensor(label, dtype=torch.long)
 
-# Red neuronal basada en x-vectors
+# Red neuronal X-vector con los mejores parámetros
 class XVectorNet(nn.Module):
     def __init__(self, input_dim=30, hidden_dims=[128, 128, 64, 64, 32], dropout=0.2):
         super(XVectorNet, self).__init__()
         layers = []
         prev_dim = input_dim
         
+        # Construir capas ocultas
         for dim in hidden_dims:
             layers.append(nn.Linear(prev_dim, dim))
             layers.append(nn.ReLU())
@@ -92,15 +95,15 @@ def hyperparameter_search():
         dropout = random.uniform(0.1, 0.4)
         lr = random.choice([0.001, 0.0005, 0.0001])
         batch_size = random.choice([16, 32, 64])
-        
+        # Cargar los datos
         dataset = SpeakerDataset(my_audio_dir, other_audio_dir, augment=True)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         model = XVectorNet(hidden_dims=hidden_dims, dropout=dropout)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        
+        # Entrenamiento
         train(model, dataloader, criterion, optimizer, epochs=20)
-        
+        # Evaluación
         accuracy = evaluate(model, test_my_audio_dir, test_label=0)
         accuracy += evaluate(model, test_other_audio_dir, test_label=1)
         accuracy /= 2
