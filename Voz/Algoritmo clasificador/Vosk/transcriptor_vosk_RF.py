@@ -74,12 +74,12 @@ def transcribir_audio(ruta_audio):
         data = wf.readframes(4000)
         if len(data) == 0:
             break
-        if rec.AcceptWaveform(data):
+        if rec.AcceptWaveform(data):  # Verifica si se ha reconocido un segmento
             result = json.loads(rec.Result())
-            texto += result.get("text", "") + " "
-    final_result = json.loads(rec.FinalResult())
-    texto += final_result.get("text", "")
-    return texto.strip()
+            texto += result.get("text", "") + " "  # Agregar espacio entre resultados
+    final_result = json.loads(rec.FinalResult())  # Obtener el resultado final
+    texto += final_result.get("text", "") 
+    return texto.strip()  # Eliminar espacios al inicio y al final
 
 # Procesar audios
 def procesar_audios():
@@ -93,17 +93,17 @@ def procesar_audios():
                 # Normalizar y filtrar ruido
                 audio_normalizado = normalizar_audio(ruta_audio)
                 ruta_temp = f"temp_{archivo}"
-                audio_normalizado.export(ruta_temp, format="wav")
+                audio_normalizado.export(ruta_temp, format="wav")  # Exportar a archivo temporal WAV
 
                 # Transcribir
                 transcripcion = transcribir_audio(ruta_temp)
-                transcripcion_limpia = limpiar_texto(transcripcion)
+                transcripcion_limpia = limpiar_texto(transcripcion)  # Limpiar la transcripción
 
                 archivos.append(archivo)
                 transcripciones.append(transcripcion_limpia)
                 etiquetas_reales.append(etiqueta_real)
 
-                os.remove(ruta_temp)
+                os.remove(ruta_temp)  # Eliminar archivo temporal
 
     return archivos, transcripciones, etiquetas_reales
 
@@ -112,13 +112,14 @@ archivos, transcripciones, etiquetas_reales = procesar_audios()
 
 # Vectorizar texto con TF-IDF (ajustes)
 vectorizador = TfidfVectorizer(
-    max_features=5000,
-    ngram_range=(1, 2)
+    max_features=5000,   # Número máximo de características
+    ngram_range=(1, 2)   # Unigramas y bigramas
 )
 
+# Transformar las transcripciones en una matriz TF-IDF
 X = vectorizador.fit_transform(transcripciones)
 
-# Dividir datos
+# Dividir datos en entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, etiquetas_reales, test_size=0.2, random_state=42)
 
 # Realizar búsqueda de hiperparámetros con GridSearchCV para Random Forest
@@ -126,24 +127,27 @@ param_grid = {
     'n_estimators': [100, 200],
     'max_depth': [None, 10, 20],
     'min_samples_split': [2, 5],
-    'class_weight': ['balanced']  # 👈 Importante para clases desbalanceadas
+    'class_weight': ['balanced']  # Importante para clases desbalanceadas
 }
 
+# Crear el objeto GridSearchCV
 grid_search = GridSearchCV(RandomForestClassifier(random_state=42), param_grid, cv=3, n_jobs=-1, verbose=1)
 grid_search.fit(X_train, y_train)
 
 # Mejor modelo encontrado
 best_model = grid_search.best_estimator_
 
-# Evaluar precisión con los mejores parámetros
+# Predecir las etiquetas del conjunto de prueba
 y_pred_test = best_model.predict(X_test)
+
+# Calcular y mostrar precisión
 accuracy = accuracy_score(y_test, y_pred_test)
 print(f"Precisión del modelo con los mejores parámetros (Random Forest): {accuracy * 100:.2f}%")
 
-# Mostrar predicciones
+# Predecir para todo el conjunto
 y_pred_full = best_model.predict(X)
 
-# Matriz de confusión por palabra
+# Calcular la matriz de confusión 
 cm = confusion_matrix(y_test, y_pred_test, labels=etiquetas + ["otro"])
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=etiquetas + ["otro"])
 disp.plot(cmap=plt.cm.Blues, xticks_rotation=45)
@@ -155,7 +159,7 @@ plt.show()
 print("Mejores parámetros encontrados (Random Forest):")
 print(grid_search.best_params_)
 
-#Guardar modelo y vectorizador
-#joblib.dump(best_model, "modelo_transcriptor_rf_best.pkl")
-#joblib.dump(vectorizador, "vectorizador_tfidf.pkl")
+# Guardar modelo y vectorizador
+# joblib.dump(best_model, "modelo_transcriptor_rf_best.pkl")
+# joblib.dump(vectorizador, "vectorizador_tfidf.pkl")
 # print("Modelo y vectorizador guardados exitosamente.")
