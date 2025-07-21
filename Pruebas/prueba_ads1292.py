@@ -28,23 +28,23 @@ spi.open(0, 0)  # Bus 0, CE0
 spi.max_speed_hz = 500000
 spi.mode = 0b01
 
-def ads1292_write_command(cmd):
+def ads1292_write_command(cmd): # Escribe un comando al ADS1292
     spi.xfer2([cmd])
 
-def ads1292_read_register(reg_address):
+def ads1292_read_register(reg_address): # Lee un registro del ADS1292
     spi.xfer2([CMD_READ_REG | reg_address, 0x00])
     return spi.xfer2([0x00])[0]
 
-def reinicialitza_ads1292():
-    lgpio.gpio_write(chip, ADS1292_PWDN_PIN, 0)
+def reinicialitza_ads1292(): # Reinicializa el ADS1292
+    lgpio.gpio_write(chip, ADS1292_PWDN_PIN, 0) # Pone PWDN a 0
     time.sleep(0.002)
-    lgpio.gpio_write(chip, ADS1292_PWDN_PIN, 1)
+    lgpio.gpio_write(chip, ADS1292_PWDN_PIN, 1) # Pone PWDN a 1
     time.sleep(0.1)
-    ads1292r_write_command(CMD_RESET)
+    ads1292_write_command(CMD_RESET) # Envía el comando de reset
     time.sleep(0.01)
-    ads1292r_write_command(CMD_SDATAC)
+    ads1292_write_command(CMD_SDATAC) # Envía el comando SDATAC
     time.sleep(0.01)
-    lgpio.gpio_write(chip, ADS1292_START_PIN, 1)
+    lgpio.gpio_write(chip, ADS1292_START_PIN, 1) # Pone START a 1
 
 try:
     # Inicialización de pines
@@ -57,20 +57,20 @@ try:
     lgpio.gpio_write(chip, ADS1292_START_PIN, 1)
     time.sleep(0.01)
 
-    print("Iniciant SPI...")
+    print("Iniciando SPI...")
     ads1292_write_command(CMD_RESET)
     time.sleep(0.01)
     ads1292_write_command(CMD_SDATAC)
     time.sleep(0.01)
     lgpio.gpio_write(chip, ADS1292_START_PIN, 1)
     id_val = 0
-    while id_val!=0x53:
+    while id_val!=0x53: # Verifica el ID del ADS1292
         
         intentos = 0
 
         while intentos < 3:
-            id_val = ads1292_read_register(0x00)
-            print(f"Intentps {intentos + 1}: Registro ID (0x00)= 0x{id_val:02X}")
+            id_val = ads1292_read_register(0x00) 
+            print(f"Intentos {intentos + 1}: Registro ID (0x00)= 0x{id_val:02X}")
 
             if id_val == 0x53:
                 break
