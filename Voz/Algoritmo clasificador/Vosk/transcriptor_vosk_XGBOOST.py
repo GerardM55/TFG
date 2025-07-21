@@ -5,14 +5,14 @@ import json
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
-import noisereduce as nr
+import noisereduce as nr  # Librería para reducción de ruido
 
 from pydub import AudioSegment
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
+from xgboost import XGBClassifier  # Clasificador XGBoost
 from vosk import Model, KaldiRecognizer
 
 # Diccionario de carpetas y etiquetas
@@ -26,23 +26,33 @@ carpetas = {
     "C:/Users/gerar/Desktop/tfg/Control_de_veu/audio_agarre_normalizados/stop": "stop"
 }
 
+# Etiquetas (excluyendo "otro" para el clasificador)
 etiquetas = list(set(carpeta for carpeta in carpetas.values() if carpeta != "otro"))
 
-# Cargar modelo Vosk
+# Cargar modelo Vosk en español
 vosk_model_path = "C:/Users/gerar/Desktop/tfg/Control_de_veu/vosk-model-es-0.42/vosk-model-es-0.42"
 vosk_model = Model(vosk_model_path)
 
-# Normalizar audio y aplicar reducción de ruido
+# Normalización de audio y reducción de ruido
 def normalizar_audio(ruta_audio):
+    # Cargar el audio desde archivo
     audio = AudioSegment.from_file(ruta_audio)
+
+    # Convertir a array numpy
     audio_data = np.array(audio.get_array_of_samples())
+
+    # Aplicar reducción de ruido
     audio_reducido = nr.reduce_noise(y=audio_data, sr=audio.frame_rate)
+
+    # Reconstruir como objeto AudioSegment
     audio_filtrado = AudioSegment(
         audio_reducido.tobytes(),
         frame_rate=audio.frame_rate,
         sample_width=audio.sample_width,
         channels=audio.channels
     )
+
+    # Normalizar el volumen
     return audio_filtrado.apply_gain(-audio_filtrado.max_dBFS)
 
 # Limpiar texto
@@ -50,82 +60,93 @@ def limpiar_texto(texto):
     texto = texto.lower()
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
-        if unicodedata.category(c) != 'Mn'
+        if unicodedata.category(c) != 'Mn'  # Eliminar tildes y caracteres especiales
     )
     return texto
 
-# Transcripción Vosk
+# Transcripción con Vosk
 def transcribir_audio(ruta_audio):
     wf = wave.open(ruta_audio, "rb")
     rec = KaldiRecognizer(vosk_model, wf.getframerate())
     rec.SetWords(True)
+
     texto = ""
     while True:
         data = wf.readframes(4000)
         if len(data) == 0:
             break
-        if rec.AcceptWaveform(data):
+        if rec.AcceptWaveform(data):  # Reconocer bloque de audio
             result = json.loads(rec.Result())
             texto += result.get("text", "") + " "
-    final_result = json.loads(rec.FinalResult())
+    final_result = json.loads(rec.FinalResult())  # Resultado final completo
     texto += final_result.get("text", "")
     return texto.strip()
 
-# Procesar audios
+# Procesar audios del dataset
 def procesar_audios():
     archivos, transcripciones, etiquetas_reales = [], [], []
     for carpeta, etiqueta_real in carpetas.items():
         for archivo in os.listdir(carpeta):
             if archivo.endswith('.wav'):
                 ruta_audio = os.path.join(carpeta, archivo)
+
+                # Normalizar y reducir ruido
                 audio_normalizado = normalizar_audio(ruta_audio)
                 ruta_temp = f"temp_{archivo}"
-                audio_normalizado.export(ruta_temp, format="wav")
+                audio_normalizado.export(ruta_temp, format="wav")  # Exportar temporalmente
+
+                # Transcribir y limpiar texto
                 transcripcion = transcribir_audio(ruta_temp)
                 transcripcion_limpia = limpiar_texto(transcripcion)
+
+                # Guardar resultados
                 archivos.append(archivo)
                 transcripciones.append(transcripcion_limpia)
                 etiquetas_reales.append(etiqueta_real)
-                os.remove(ruta_temp)
+
+                os.remove(ruta_temp)  # Eliminar archivo temporal
+
     return archivos, transcripciones, etiquetas_reales
 
 # Ejecutar procesamiento de audios
 archivos, transcripciones, etiquetas_reales = procesar_audios()
 
-# Vectorizar texto
-vectorizador = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+# Vectorización de texto con TF-IDF
+vectorizador = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))  # Usar unigramas y bigramas
 X = vectorizador.fit_transform(transcripciones)
 
-# Codificar etiquetas a números
+# Codificar etiquetas a valores numéricos
 label_encoder = LabelEncoder()
 y_encoded = label_encoder.fit_transform(etiquetas_reales)
 
-# División de datos
+# Dividir en conjunto de entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
 
-# GridSearchCV para XGBoost
+# Búsqueda de hiperparámetros con GridSearchCV para XGBoost
 param_grid = {
-    'n_estimators': [100, 200],
-    'max_depth': [3, 5, 7],
-    'learning_rate': [0.1, 0.01],
-    'subsample': [0.8, 1.0],
+    'n_estimators': [100, 200],        # Número de árboles
+    'max_depth': [3, 5, 7],            # Profundidad del árbol
+    'learning_rate': [0.1, 0.01],      # Tasa de aprendizaje
+    'subsample': [0.8, 1.0],           # Porcentaje de muestras utilizadas en cada árbol
 }
 
+# Crear objeto GridSearchCV
 grid_search = GridSearchCV(XGBClassifier(random_state=42), param_grid, cv=3, n_jobs=-1, verbose=1)
 grid_search.fit(X_train, y_train)
 
-# Mejor modelo
+# Mejor modelo encontrado
 best_model = grid_search.best_estimator_
 
-# Evaluar modelo
+# Predecir en el conjunto de prueba
 y_pred_test = best_model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred_test)
 print(f"Precisión del modelo con los mejores parámetros (XGBoost): {accuracy * 100:.2f}%")
 
-# Matriz de confusión
+# Decodificar etiquetas predichas
 y_pred_labels = label_encoder.inverse_transform(y_pred_test)
 y_test_labels = label_encoder.inverse_transform(y_test)
 
+# Matriz de confusión por palabra
 cm = confusion_matrix(y_test_labels, y_pred_labels, labels=etiquetas + ["otro"])
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=etiquetas + ["otro"])
 disp.plot(cmap=plt.cm.Blues, xticks_rotation=45)
@@ -133,11 +154,12 @@ plt.title("Matriz de Confusión por Palabra (XGBoost)")
 plt.tight_layout()
 plt.show()
 
-# Mostrar los mejores parámetros
+# Mostrar mejores hiperparámetros encontrados
 print("Mejores parámetros encontrados (XGBoost):")
 print(grid_search.best_params_)
 
-# Guardar modelo, vectorizador y codificador si se desea
+# Guardar modelo, vectorizador y codificador
 # joblib.dump(best_model, "modelo_transcriptor_xgboost_best.pkl")
 # joblib.dump(vectorizador, "vectorizador_tfidf.pkl")
 # joblib.dump(label_encoder, "codificador_etiquetas.pkl")
+# print("Modelo, vectorizador y codificador guardados exitosamente.")
