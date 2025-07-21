@@ -14,12 +14,12 @@ def extract_mfcc(audio_path, n_mfcc=30, augment=False):
     audio, sr = librosa.load(audio_path, sr=16000)
     
     if augment:
-        if random.random() < 0.3:
-            audio = librosa.effects.time_stretch(audio, rate=random.uniform(0.8, 1.2))
-        if random.random() < 0.3:
-            audio = librosa.effects.pitch_shift(audio, sr=sr, n_steps=random.randint(-2, 2))
-        if random.random() < 0.3:
-            noise = np.random.randn(len(audio)) * 0.005
+        if random.random() < 0.3: # Cambiar la velocidad
+            audio = librosa.effects.time_stretch(audio, rate=random.uniform(0.8, 1.2)) # Cambia la velocidad entre 80% y 120%
+        if random.random() < 0.3: # Cambiar el tono
+            audio = librosa.effects.pitch_shift(audio, sr=sr, n_steps=random.randint(-2, 2)) # Cambia el tono entre -2 y 2 semitonos
+        if random.random() < 0.3: # Añadir ruido
+            noise = np.random.randn(len(audio)) * 0.005 # Añadir ruido gaussiano
             audio = audio + noise
     
     mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)
@@ -32,19 +32,23 @@ class SpeakerDataset(Dataset):
         self.labels = []
         self.augment = augment
         
+        # Abrir los directorios de audio de mi voz 
         for audio_file in os.listdir(my_audio_dir):
             if audio_file.endswith('.wav'):
                 self.audio_files.append(os.path.join(my_audio_dir, audio_file))
                 self.labels.append(0)
         
+        # Abrir los directorios de audio de otras voces
         for audio_file in os.listdir(other_audio_dir):
             if audio_file.endswith('.wav'):
                 self.audio_files.append(os.path.join(other_audio_dir, audio_file))
                 self.labels.append(1)
-        
+
+    # Número de muestras en el dataset  
     def __len__(self):
         return len(self.audio_files)
 
+    # Obtener una muestra del dataset y extraer MFCC
     def __getitem__(self, idx):
         audio_file = self.audio_files[idx]
         label = self.labels[idx]
@@ -58,6 +62,7 @@ class XVectorNet(nn.Module):
         layers = []
         prev_dim = input_dim
         
+        # Construir la red neuronal con capas ocultas y dropout
         for dim in hidden_dims:
             layers.append(nn.Linear(prev_dim, dim))
             layers.append(nn.ReLU())
