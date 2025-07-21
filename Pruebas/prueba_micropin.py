@@ -44,12 +44,12 @@ data_preparada = False
 CONFIG_SPI_MASTER_DUMMY = 0x00
 emgData = 0
 servoData = 0
-try:
-    lgpio.gpiochip_close(0)
+try: 
+    lgpio.gpiochip_close(0) # Cierra el chip GPIO si está abierto
 except lgpio.error:
     pass
 
-chip = lgpio.gpiochip_open(0)
+chip = lgpio.gpiochip_open(0) # Abre el chip GPIO
 
 # --- Registros ---
 CONFIG1 = 0x01
@@ -75,7 +75,7 @@ lgpio.gpio_claim_input(chip, MICRO_PIN)
 lgpio.gpio_claim_input(chip, SD_PIN)
 lgpio.gpio_claim_input(chip, ADS1292_DRDY_PIN)
 
-def gpio_callback(chip, gpio, level, tick):
+def gpio_callback(chip, gpio, level, tick): # Callback para cambios en EMG_VOZ_PIN
     global modo, EMG_VOZ_PIN
     if modo == "voz":
         modo = "emg"
@@ -84,8 +84,8 @@ def gpio_callback(chip, gpio, level, tick):
         modo = "voz"
         print("voz")
 def main():
-    lgpio.gpio_claim_alert(chip, EMG_VOZ_PIN, lgpio.BOTH_EDGES)
-    lgpio.callback(chip, EMG_VOZ_PIN, lgpio.BOTH_EDGES, gpio_callback)
+    lgpio.gpio_claim_alert(chip, EMG_VOZ_PIN, lgpio.BOTH_EDGES) # Configura alerta para cambios en EMG_VOZ_PIN
+    lgpio.callback(chip, EMG_VOZ_PIN, lgpio.BOTH_EDGES, gpio_callback) # Registra la función de callback
     while True:
         time.sleep(1)
 
