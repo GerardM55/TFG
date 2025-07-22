@@ -254,6 +254,13 @@ pip install adafruit-circuitpython-pca9685 lgpio adafruit-blinka
 La salida del script es la impresión por pantalla de los valores devueltos por el ADS1292, junto con el movimiento
 del dedo deseado. 
 
+## prueba_EMG_ads1292.py
+Este script verifica tanto la correcta adquisición de la señal EMG a través del ADS1292 como el correcto funcionamiento de la detección de contracciones musculares. 
+El código es el mismo que el del script **ADS1292.py** añadiendo una función **main()** que gestiona el proceso (en lugar de ser gestionado a través del script_principal.py). Por lo tanto, la descripción exhaustiva del script se puede leer en el README.md del archivo Scripts_finales. La importancia del script es que el usuario debe ajustar los siguientes parámetros para que la detección de la contracción muscular sea más eficiente: 
+* El número que múltiplica la variable **mad** en las variables **PEAK_MIN_HEIGHT** y **PEAK_MAX_HEIGHT**. 
+* El número que múltplica la variable **peakStdDev** para obtener la variable **threshold**.
+* El tiempo de calibración (línea 469).
 
+  
 
 
