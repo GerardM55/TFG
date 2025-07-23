@@ -387,8 +387,8 @@ def adquirir_picos_iniciales(emg_value):
         print(f"📉 Median Absolute Deviation (MAD): {mad}")
         print(f"📊 Median: {median}")
 
-        PEAK_MIN_HEIGHT = int(median - 5 * mad) # Ajuste del rango mínimo de picos
-        PEAK_MAX_HEIGHT = int(median + 5 * mad) # Ajuste del rango máximo de picos
+        PEAK_MIN_HEIGHT = int(median - 2 * mad) # Ajuste del rango mínimo de picos
+        PEAK_MAX_HEIGHT = int(median + 2 * mad) # Ajuste del rango máximo de picos
 
         peakRangeComputed = True
 
@@ -408,14 +408,14 @@ def calibrar_threshold():
     if peakCount >= sampleSize: # Si se ha alcanzado el tamaño del buffer de picos, se calcula la media y la desviación estándar
         mean_peak = calcular_media(peakValues, peakCount)
         peakStdDev = calcular_std_dev(peakValues, peakCount, mean_peak)
-        threshold = mean_peak + 9* peakStdDev #Se calcula el threshold como la media más 9 veces la desviación estándar
+        threshold = mean_peak + 5* peakStdDev #Se calcula el threshold como la media más 9 veces la desviación estándar
 
         calibrationDone = True
 
         print("Calibration complete")
         print(f" Mean peak: {mean_peak}")
         print(f" Std deviation: {peakStdDev}")
-        print(f" Threshold (mean + 9σ): {threshold}")
+        print(f" Threshold (mean + 5σ): {threshold}")
 
         lastPeakValue = 0
         lowPeakCount = 0
@@ -466,7 +466,7 @@ def emg_deteccion(valor):
         bufferFillCount += 1
         return
 
-    if millis() - calibrationStartTime < 6000: # Si han pasado menos de 6 segundos desde el inicio de la función, se hace return sin hacer nada
+    if millis() - calibrationStartTime < 10000: # Si han pasado menos de 6 segundos desde el inicio de la función, se hace return sin hacer nada
         return
 
     if not peakRangeComputed:
@@ -554,14 +554,14 @@ def servo_inicializacion():
 def servo_config():
     # --- Función principal encargada de gestionar las funciones para inicializar la configuración de la adquisición de datos de retroalimentación de los servomotores ---
     global chip, spi, dataReady
+    lgpio.gpio_claim_alert(chip, ADS1292_DRDY_PIN, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
+    lgpio.callback(chip, ADS1292_DRDY_PIN, lgpio.FALLING_EDGE, esperar_DRDY)
     activar_spi()
     servo_inicializacion()
     
 def realimentacion(dedo):
     # --- Función que adquiere el valor del ADS1292, hace la transformación a intensidad y comprueba si esta supera el threshold ---
     global chip, spi, dataReady, servoData, CMD_RDATA, vref, currentThreshold
-    lgpio.gpio_claim_alert(chip, ADS1292_DRDY_PIN, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
-    lgpio.callback(chip, ADS1292_DRDY_PIN, lgpio.FALLING_EDGE, esperar_DRDY)
     while not dataReady:
         time.sleep(0.001)  # Espera 1 ms para no saturar CPU
     if dataReady:
