@@ -2,24 +2,26 @@ import time
 from board import SCL, SDA
 import busio
 from adafruit_pca9685 import PCA9685
-import ADS1292
+import prueba_EMG_ads1292
 import lgpio
+import signal
 
 # --- VARIABLES GLOBALES ---
-MUX_A1_PIN = 23  # Pin A1 del MUX
-MUX_A0_PIN = 22  # Pin A0 del MUX
-MUX_EN_PIN = 24  # Pin EN del MUX
-pca = None 
-i2c_bus = None
+MUX_A1_PIN = 23 # Pin A1 del MUX
+MUX_A0_PIN = 22 # Pin A0 del MUX
+MUX_EN_PIN = 24 # Pin EN del MUx
+pca=None
+i2c_bus=None
+chip=None
 
 # --- Función para inicializar el bus I2C ---
 def abrir_i2c():
-    global pca, i2c_bus 
+    global pca,i2c_bus 
     # Crear el bus I2C
     i2c_bus = busio.I2C(SCL, SDA)
     pca = PCA9685(i2c_bus)
     pca.frequency = 50  # 50Hz para servos MG996R
-
+    
 # --- Canal asociado a cada dedo ---
 dedos = {
     "pulgar": 4,
@@ -27,6 +29,13 @@ dedos = {
     "medio_anular": 6,
     "menique": 2,
     "rot": 8
+}
+# --- DICCIONARIO MUX-DEDOS  ---
+valoresMuxDedo = {
+    "pulgar":   {"A0": 0, "A1": 0},
+    "indice":   {"A0": 0, "A1": 1},
+    "medio_anular": {"A0": 1, "A1": 0},
+    "menique":  {"A0": 1, "A1": 1},
 }
 
 # --- Diccionario de agarres con valor y tipo de movimiento (S o R) ---
@@ -43,6 +52,7 @@ agarre_config = {
         ["indice", 0.5, "R"],
         ["medio_anular", 2.5, "R"],
         ["menique", 0.5, "R"]
+        
     ],
     "pinza": [
         ["rot", 0.6, "S"],
@@ -78,7 +88,7 @@ agarre_config = {
 # --- Función para mover el servomotor ---
 def mover_servo(canal, pulse_ms):
     global pca
-    duty_cycle = int(pulse_ms * 65535 / 20.0)  # Convertir a duty cycle
+    duty_cycle = int(pulse_ms * 65535 / 20.0) # Convertir a duty cycle
     pca.channels[canal].duty_cycle = duty_cycle
 
 # --- Función para seleccionar el canal de movimiento del servomotor en la PCA9685W en función del dedo ---
@@ -86,7 +96,7 @@ def mover_directo(dedo, posicion):
     canal = dedos[dedo]
     mover_servo(canal, posicion)
 
-# --- Función para obtener la posición del dedo ---
+# --- Función para obtener la posición del dedo ---    
 def obtener_posicion_stop(dedo):
     for d, valor, _ in agarre_config["stop"]:
         if d == dedo:
@@ -96,13 +106,11 @@ def obtener_posicion_stop(dedo):
 # --- Función para mover por pasos el dedo. ---
 def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.01):
     canal = dedos[dedo]
-    if dedo != "rot":
+    if dedo!="rot":
         configurarMUX(dedo)
-    
-    # Obtener la posición de 'stop' del dedo
-    posicion_actual = obtener_posicion_stop(dedo)
+    # Leer posición actual (no se puede directamente, así que asumimos parte baja o setpoint anterior)
+    posicion_actual = obtener_posicion_stop(dedo)  # Ahora se usa el valor real desde 'stop'
     print(posicion_actual)
-
     if objetivo < posicion_actual:
         paso = -abs(paso)
     else:
@@ -110,13 +118,14 @@ def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.01):
 
     while abs(posicion_actual - objetivo) > 0.01:
         mover_servo(canal, posicion_actual)
+        #time.sleep(delay)
         time.sleep(0.01)
-
-        if dedo != "rot":
+        
+        if dedo!="rot":
             if leer_señal_control(dedo) and False:
                 print(f"¡Consumo alto! Deteniendo movimiento suave.")
                 break
-
+        
         posicion_actual += paso
 
         # Clamp si se pasa
@@ -143,34 +152,44 @@ def gestion_servos(agarre):
 
 # --- Función principal que ejecuta un agarre completo (con o sin realimentación) ---
 def ejecutar_agarre(nombre_agarre):
-    global i2c_bus
+    global  i2c_bus
     abrir_i2c()
     if nombre_agarre not in ("stop", "general"):
-        ADS1292.servo_config()
+        prueba_EMG_ads1292.servo_config()
     gestion_servos(nombre_agarre)
     if nombre_agarre not in ("stop", "general"):
-        ADS1292.servo_stop()
+        prueba_EMG_ads1292.servo_stop()
     i2c_bus.deinit()
 
 # --- Función que adquiere el valor del ADS1292, hace la transformación a intensidad y comprueba si esta supera el threshold ---
 def leer_señal_control(dedo):
-    return ADS1292.realimentacion(dedo)
+    return prueba_EMG_ads1292.realimentacion(dedo)
 
 # --- Función que configura el MUX para redirigir la señal del dedo correspondiente ---
 def configurarMUX(dedo):
     global chip
-    lgpio.gpio_write(chip, MUX_EN_PIN, 1)
     print("configurar dedo ")
-    print(dedo)
+    print (dedo)
     lgpio.gpio_write(chip, MUX_A0_PIN, valoresMuxDedo[dedo]["A0"])
     lgpio.gpio_write(chip, MUX_A1_PIN, valoresMuxDedo[dedo]["A1"])
-
+    
 # --- Función para declarar como salida los pines del MUX ---
 def activar_gpiosMUX():
     global chip
+    print("dins activar_gpios")
+    print(chip)
     lgpio.gpio_claim_output(chip, MUX_A0_PIN)
     lgpio.gpio_claim_output(chip, MUX_A1_PIN)
     lgpio.gpio_claim_output(chip, MUX_EN_PIN)
+    lgpio.gpio_write(chip, MUX_EN_PIN, 1)
+
+# --- Función para compartir el chip con la variable global ---    
+def compartir_chip(Chip):
+    # --- Función que configura la variable chip con el valor Chip  ---
+    global chip
+    print("dins compartir_chip")
+    chip=Chip
+    print(chip)
 
 # --- Función que detiene la adquisición del ADS1292, libera la GPIO ADS1292_DRDY_PIN y termina la comunicación SPI ---
 def servo_stop():
@@ -180,18 +199,16 @@ def servo_stop():
     lgpio.gpio_free(chip, MUX_A0_PIN)
     lgpio.gpio_free(chip, MUX_A1_PIN)
 
-# --- Ejecución principal para pruebas ---
-if __name__ == "__main__":
+# --- Ejecución principal para pruebas --
+def main():
     # Paso 1: Movimiento "stop"
-    print("Ejecutando movimiento: stop")
-    ejecutar_agarre("stop")
-    time.sleep(1)
-    ADS1292.config_ini()
+    global chip
+    chip=prueba_EMG_ads1292.configuracion_ini()
 
     # Paso 2: Movimiento de un dedo (por ejemplo, índice)
-    print("Ejecutando movimiento de dedo individual: menique")
+    print("Ejecutando movimiento de dedo individual: indice")
     abrir_i2c()
-    ADS1292.servo_config()
+    prueba_EMG_ads1292.servo_config()
     activar_gpiosMUX()
     mover_suavemente("indice", 0.9)  # Cambia el valor si deseas otra posición
     servo_stop()
@@ -201,3 +218,10 @@ if __name__ == "__main__":
     # Paso 3: Volver a "stop"
     print("Volviendo a movimiento: stop")
     ejecutar_agarre("stop")
+
+
+
+if __name__ == "__main__":
+    main()
+
+
