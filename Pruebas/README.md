@@ -232,7 +232,7 @@ El script muestra por consola el estado de la GPIO y cada vez que hay un cambio 
 ## prueba_retroalimentacion.py
 Este script es usado para verificar los valores devueltos por el ADS1292 referentes a la retroalimentación de los servomotores. 
 La función principal del script es realizar el movimiento de flexión de un dedo y obtener los valores
-de intensidad del ADS1292 mediante el script **ADS1292.py** (disponible en el archivo Scripts finales)
+de intensidad del ADS1292 mediante el script **prueba_EMG_ads1292.py**. 
 
 ### Descripción 
 El script realiza las siguientes acciones:
