@@ -108,7 +108,7 @@ def obtener_posicion_stop(dedo):
             return valor
     return 2.5 if dedo == "rot" else 1.5
 
-def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.06):
+def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.05):
     # --- Función para hacer el movimiento de un dedo con control por realimentación ---
     canal = dedos[dedo]
     if dedo!="rot":
@@ -124,7 +124,7 @@ def mover_suavemente(dedo, objetivo, delay=0.03, paso=0.06):
         time.sleep(delay)
         
         if dedo!="rot":
-            if leer_señal_control(dedo):
+            if leer_señal_control(dedo) and False:
                 print(f"¡Consumo alto! Deteniendo movimiento suave.")
                 break
         
