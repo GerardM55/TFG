@@ -165,6 +165,16 @@ def config_ini():
     lgpio.gpio_claim_output(chip, ADS1292_START_PIN)
     lgpio.gpio_claim_output(chip, ADS1292_PWDN_PIN)
     lgpio.gpio_claim_input(chip, ADS1292_DRDY_PIN)
+
+def configuracion_ini():
+    # --- Config GPIO ---
+    global chip
+    chip = lgpio.gpiochip_open(0)
+    lgpio.gpio_claim_output(chip, ADS1292_START_PIN)
+    lgpio.gpio_claim_output(chip, ADS1292_PWDN_PIN)
+    lgpio.gpio_claim_input(chip, ADS1292_DRDY_PIN)
+    #prueba_retroalimentacion.compartir_chip(chip)
+    return chip
  
 # --- FUNCIONES GLOBALES ---
 
